@@ -267,10 +267,11 @@ def _resolve_edges(conn):
 def _cleanup_deleted_files(conn, current_files: list):
     cached_files = conn.execute("SELECT file_path FROM file_cache").fetchall()
     current_set = set(current_files)
-    for (cached_path,) in cached_files:
-        if cached_path not in current_set:
-            conn.execute("DELETE FROM nodes WHERE file_path = ?", (cached_path,))
-            conn.execute("DELETE FROM file_cache WHERE file_path = ?", (cached_path,))
+    paths_to_delete = [(cached_path,) for (cached_path,) in cached_files if cached_path not in current_set]
+
+    if paths_to_delete:
+        conn.executemany("DELETE FROM nodes WHERE file_path = ?", paths_to_delete)
+        conn.executemany("DELETE FROM file_cache WHERE file_path = ?", paths_to_delete)
 
 
 if __name__ == "__main__":
