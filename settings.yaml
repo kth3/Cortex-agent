@@ -1,0 +1,47 @@
+# ==============================================================================
+# 에이전트 동작 및 환경 설정 (Agent Settings)
+# ==============================================================================
+# [SCHEMA GUIDE] 이 파일 수정 시 아래 형식을 준수하세요.
+#   - language: "ko" | "en"
+#   - tone: "professional" | "casual" | "concise"
+#   - silent_shortcuts: @멘션 명령어 배열 (예: ["@동기화", "@백업"])
+#   - auto_planning: true | false
+#   - auto_planning: true | false
+# ==============================================================================
+
+agent_behavior:
+  language: "ko"
+  language_rule: "Strictly enforce Korean for all outputs."
+  tone: "professional"
+  silent_shortcuts: ["@진행", "@백업", "@로드"]
+  auto_planning: false
+
+project_preferences:
+  preferred_frameworks: ["React", "Spring Boot", "Docker"]
+  coding_standards_path: ".agents/rules/rule.md"
+  protocols_path: ".agents/protocols/"
+
+# ==============================================================================
+# 인덱싱 및 하이브리드 검색 설정 (Indexing Rules)
+# ==============================================================================
+indexing_rules:
+  # 멀티레포 대응: 지식을 공유할 다른 저장소 경로
+  linked_workspaces: [] # 예: ["../another-project"]
+  
+  # 인덱싱 범위: 기본적으로 src 폴더 내부를 로직으로 인식
+  include_paths: ["**/src/**", "**/skills/**"]
+  
+  # 설정 파일 화이트리스트: src 외부에 있어도 맥락 파악을 위해 항상 읽음
+  config_whitelist: 
+    - "*.xml"          # pom.xml 등
+    - "*.yml"          # application.yml 등
+    - "*.json"         # package.json 등
+    - "Dockerfile"
+    - "README.md"
+    - ".env.example"
+  
+  # 모노레포 모듈 정의 (src가 아닌 경우 경로 직접 지정 가능)
+  modules:
+    backend: ["BE/src/main/java"]
+    frontend: ["FE/src", "FE/public"]
+    ai: ["AI/apps", "AI/jobs", "AI/scripts"]
