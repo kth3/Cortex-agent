@@ -6,12 +6,7 @@ Cortex 벡터 검색 엔진 (Vector Engine)
 - 저장소: FAISS (로컬 파일 기반, cortex_data/vectors.index)
 """
 import os
-import json
-import time
 import pickle
-import hashlib
-from pathlib import Path
-from typing import Optional
 
 # 청킹 설정
 CHUNK_SIZE = 500          # 청크당 최대 문자 수
