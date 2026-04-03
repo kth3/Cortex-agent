@@ -8,7 +8,7 @@ from cortex.db import get_connection, search_nodes_fts, get_node_by_id
 from cortex.skeleton import get_node_skeleton
 from cortex.impact import get_impact_tree
 
-def generate_context_capsule(workspace_path, query, token_budget=8000, category=None):
+def generate_context_capsule(workspace_path, query, token_budget=6000, category=None):
     """
     하이브리드 검색 기반 Context Capsule 생성
     - query: 검색어
