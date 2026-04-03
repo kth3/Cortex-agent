@@ -5,26 +5,30 @@ import subprocess
 import os
 import time
 
+_git_root_cache = {}
+
 def _find_git_root(workspace, file_path):
-    """파일의 상위로 올라가며 .git 폴더가 있는 실제 저장소 루트를 반환"""
+    """상위로 올라가며 .git 폴더가 있는 실제 저장소 루트를 반환 (캐시 적용)"""
+    # 1. 절대 경로로 정규화
+    if os.path.isabs(file_path):
+        abs_path = os.path.normpath(file_path)
+    else:
+        abs_path = os.path.normpath(os.path.join(workspace, file_path))
+    
+    target_dir = abs_path if os.path.isdir(abs_path) else os.path.dirname(abs_path)
+    if target_dir in _git_root_cache:
+        return _git_root_cache[target_dir]
+            
     try:
-        # 1. 절대 경로로 정규화
-        if os.path.isabs(file_path):
-            abs_path = os.path.normpath(file_path)
-        else:
-            abs_path = os.path.normpath(os.path.join(workspace, file_path))
-            
-        # 2. 파일이면 상위 폴더부터 시작
-        curr = abs_path
-        if not os.path.isdir(curr):
-            curr = os.path.dirname(curr)
-            
-        # 3. 상위로 올라가며 .git 검색
+        curr = target_dir
+        # 상위로 올라가며 .git 검색
         while curr and curr != os.path.dirname(curr):
             if os.path.exists(os.path.join(curr, ".git")):
+                _git_root_cache[target_dir] = curr
                 return curr
             curr = os.path.dirname(curr)
-        return workspace # 폴백
+        _git_root_cache[target_dir] = workspace
+        return workspace
     except Exception:
         return workspace
 

@@ -97,17 +97,21 @@ class PersistentMemoryManager:
             conn.close()
 
     def search(self, project_id: str, query: str, category: str = None, limit: int = 10) -> list:
-        """FTS5 전문 검색"""
+        """FTS5 전문 검색 (유연한 토큰 매칭)"""
         conn = get_connection(self.workspace)
         try:
-            safe_query = f'"{query.replace(chr(34), chr(34)+chr(34))}"'
+            # 검색어 정제: 특수문자 제거 및 토큰화
+            clean_query = query.replace('"', '').replace("'", "")
+            tokens = [f'"{t}"*' for t in clean_query.split() if len(t) >= 2]
+            fts_query = " OR ".join(tokens) if tokens else "*"
+            
             if category:
                 rows = conn.execute(
                     """SELECT m.* FROM memories_fts f
                        JOIN memories m ON m.rowid = f.rowid
                        WHERE memories_fts MATCH ? AND m.category = ?
                        ORDER BY rank LIMIT ?""",
-                    (safe_query, category, limit),
+                    (fts_query, category, limit),
                 ).fetchall()
             else:
                 rows = conn.execute(
@@ -115,7 +119,7 @@ class PersistentMemoryManager:
                        JOIN memories m ON m.rowid = f.rowid
                        WHERE memories_fts MATCH ?
                        ORDER BY rank LIMIT ?""",
-                    (safe_query, limit),
+                    (fts_query, limit),
                 ).fetchall()
 
             results = []

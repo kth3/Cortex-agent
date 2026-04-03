@@ -9,8 +9,8 @@ import os
 import pickle
 
 # 청킹 설정
-CHUNK_SIZE = 500          # 청크당 최대 문자 수
-CHUNK_OVERLAP = 50        # 청크 간 오버랩 (문맥 연속성 확보)
+CHUNK_SIZE = 1200         # 청크당 최대 문자 수 (BGE-M3 최적화)
+CHUNK_OVERLAP = 150       # 청크 간 오버랩
 DEFAULT_TOP_K = 5         # 기본 검색 결과 수
 
 # 모델 식별자

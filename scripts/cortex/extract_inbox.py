@@ -67,15 +67,16 @@ def extract_to_inbox():
                 break
                 
         if insert_idx == -1:
-            print("[ERROR] inbox.md 파일 내부에 '## 대기 중 항목 (Pending)' 헤더가 없습니다.")
-            return
+            # 헤더가 없으면 파일 맨 뒤에 헤더와 함께 추가
+            lines.append("\n## 대기 중 항목 (Pending)\n")
+            insert_idx = len(lines)
             
         # 개행 구조 유지
         if insert_idx < len(lines) and lines[insert_idx].strip() != "":
             lines.insert(insert_idx, "\n")
             insert_idx += 1
             
-        # 역순으로 삽입하여 가장 먼저 들어온 관찰 내용이 위쪽에 오도록 조치 (필요 시 정순으로 가능)
+        # 역순으로 삽입하여 가장 먼저 들어온 관찰 내용이 위쪽에 오도록 조치
         for line in reversed(formatted_lines):
             lines.insert(insert_idx, line + "\n")
             
