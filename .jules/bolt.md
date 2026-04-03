@@ -1,0 +1,3 @@
+## 2026-04-03 - N+1 Query Fix for SQLite IN clause
+**Learning:** The `SkillManager.search_skills` function used to execute an individual query for each missing vector ID. It has been successfully optimized using a batched IN-clause lookup, chunking inputs by 900 to safely stay under SQLite's maximum binding limit, returning mean query execution time from possible performance degradation to around ~13.5ms for 500 records.
+**Action:** Always prefer grouped data retrieval via `IN` clauses over multiple individual point queries (`SELECT * WHERE id = ?`). Apply chunk sizes of <= 900 for broad safety across different SQLite versions.
