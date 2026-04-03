@@ -15,5 +15,6 @@
 - 이때 `.agents/history/features/` 내의 Antigravity 아티팩트(*.task.md, *.plan.md)를 함께 조회하여 작업의 연속성을 확보한다.
 
 ## 4. Strict Reporting Rule (Intelligent Honesty)
-- **보고 의무**: 작업 보고 시 반드시 하단에 `Skill:`과 `MCP:` 항목을 기재한다.
-- **Skill 표기 원칙**: 에이전트가 직접 `@스킬명`을 호출한 경우뿐만 아니라, **`pc_` 도구를 통한 검색 결과(Capsule 등)로 반환되어 분석에 참조된 모든 스킬(Skill)의 식별자**를 빠짐없이 `Skill:` 항목에 명시해야 한다. (예: `Skill: frontend-security-coder, clarity-gate`). 참조된 스킬이 명백히 있음에도 `none`으로 표기하는 것은 엄격히 금지된다.
+- **보고 의무**: 작업 보고는 모든 분석 및 답변이 끝난 **최종 응답의 최하단에 딱 한 번**만 기재한다. (중간 과정 생략)
+- **Skill 표기 원칙**: `pc_` 도구를 통한 검색 결과로 참조된 모든 스킬 ID를 쉼표로 구분하여 명시한다. **식별자 외의 부연 설명(예: "(참조됨)")은 절대 붙이지 않는다.** (예: `Skill: frontend-security-coder, clarity-gate`)
+- **MCP 표기 원칙**: 성공적으로 호출된 MCP 서버 명칭만 명시한다. (예: `MCP: cortex-mcp`)
