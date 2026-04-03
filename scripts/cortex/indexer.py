@@ -124,6 +124,7 @@ def get_module_name(rel_path: str, settings: dict) -> str:
 
 
 def compute_hash(content: str) -> str:
+    """파일 내용 해시 계산"""
     return hashlib.blake2b(content.encode("utf-8"), digest_size=16).hexdigest()
 
 # ==============================================================================
