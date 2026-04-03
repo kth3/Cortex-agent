@@ -96,7 +96,7 @@ def should_include(path: str, workspace: str, settings: dict) -> bool:
             return True
             
     # 2. 포함 경로 체크
-    includes = rules.get("include_paths", ["**/src/**"])
+    includes = rules.get("include_paths", ["**/src/**", "**/*.py"])
     for pattern in includes:
         if fnmatch.fnmatch(rel, pattern):
             return True
@@ -204,8 +204,9 @@ def index_workspace(workspace: str, force: bool = False) -> dict:
             files_to_delete_nodes.append((rel_path,))
             
         # 노드/벡터 저장
+        nodes_data = []
+        cat = "SKILL" if "skills/" in rel_path or "skills\\" in rel_path else "SOURCE"
         for node in result["nodes"]:
-            cat = "SKILL" if "skills/" in rel_path or "skills\\" in rel_path else "SOURCE"
             nodes_to_insert.append((
                 node["id"], node["type"], node["name"], node["fqn"],
                 node["file_path"], node["start_line"], node["end_line"],
@@ -226,6 +227,16 @@ def index_workspace(workspace: str, force: bool = False) -> dict:
                 "meta": {"module": mod_name, "file": rel_path, "type": node["type"], "category": cat}
             })
             
+        if nodes_data:
+            conn.executemany("""
+                INSERT OR REPLACE INTO nodes
+                (id, type, name, fqn, file_path, start_line, end_line,
+                 signature, return_type, docstring, is_exported, is_async,
+                 is_test, raw_body, skeleton_standard, skeleton_minimal, language,
+                 module, workspace_id, category)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, nodes_data)
+
         # 엣지 저장
         for edge in result["edges"]:
             edges_to_insert.append((edge["source_id"], edge["target_id"], edge.get("type", "CALLS")))
@@ -293,10 +304,11 @@ def _resolve_edges(conn):
 def _cleanup_deleted_files(conn, current_files: list):
     cached_files = conn.execute("SELECT file_path FROM file_cache").fetchall()
     current_set = set(current_files)
-    for (cached_path,) in cached_files:
-        if cached_path not in current_set:
-            conn.execute("DELETE FROM nodes WHERE file_path = ?", (cached_path,))
-            conn.execute("DELETE FROM file_cache WHERE file_path = ?", (cached_path,))
+    paths_to_delete = [(cached_path,) for (cached_path,) in cached_files if cached_path not in current_set]
+
+    if paths_to_delete:
+        conn.executemany("DELETE FROM nodes WHERE file_path = ?", paths_to_delete)
+        conn.executemany("DELETE FROM file_cache WHERE file_path = ?", paths_to_delete)
 
 
 if __name__ == "__main__":
