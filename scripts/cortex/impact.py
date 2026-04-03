@@ -70,11 +70,31 @@ def find_logic_flow(conn, from_fqn, to_fqn):
         path = queue.popleft()
         node = path[-1]
         if node == eid:
-            # 경로 상세 정보로 변환
+            # 경로 상세 정보로 변환 (IN 절을 사용해 N+1 문제 해결)
+            if not path:
+                return []
+
+            node_map = {}
+            chunk_size = 900
+
+            for i in range(0, len(path), chunk_size):
+                chunk = path[i:i + chunk_size]
+                placeholders = ','.join(['?'] * len(chunk))
+                query = f"SELECT id, fqn, file_path, start_line FROM nodes WHERE id IN ({placeholders})"
+                rows = conn.execute(query, tuple(chunk)).fetchall()
+                for row in rows:
+                    node_map[row['id']] = dict(row)
+
             flow = []
             for nid in path:
-                ninfo = conn.execute("SELECT fqn, file_path, start_line FROM nodes WHERE id = ?", (nid,)).fetchone()
-                flow.append(dict(ninfo))
+                if nid in node_map:
+                    ninfo = node_map[nid]
+                    # 원래 반환하던 키들만 추출
+                    flow.append({
+                        'fqn': ninfo['fqn'],
+                        'file_path': ninfo['file_path'],
+                        'start_line': ninfo['start_line']
+                    })
             return flow
             
         callees = conn.execute("SELECT to_id FROM edges WHERE from_id = ?", (node,)).fetchall()
