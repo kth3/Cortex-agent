@@ -24,6 +24,18 @@ def test_get_db_path_ends_with_agents(tmp_path):
     assert db_path == expected
     assert os.path.exists(os.path.dirname(db_path))
 
+def test_get_db_path_makedirs_exception(monkeypatch):
+    """
+    Test that get_db_path bubbles up exceptions from os.makedirs when it fails
+    """
+    def mock_makedirs(*args, **kwargs):
+        raise PermissionError("Permission denied")
+
+    monkeypatch.setattr(os, "makedirs", mock_makedirs)
+
+    with pytest.raises(PermissionError, match="Permission denied"):
+        get_db_path("/some/workspace")
+
 def test_to_rel_path_normal():
     """
     Note: The actual implementation of to_rel_path in scripts/cortex/db.py
