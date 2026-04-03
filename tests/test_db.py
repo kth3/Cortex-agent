@@ -1,6 +1,28 @@
 import os
 import pytest
-from scripts.cortex.db import to_rel_path
+from scripts.cortex.db import to_rel_path, get_db_path
+
+def test_get_db_path_normal(tmp_path):
+    """
+    Test when workspace does NOT end with .agents
+    """
+    workspace = str(tmp_path / "project")
+    db_path = get_db_path(workspace)
+
+    expected = os.path.join(workspace, ".agents", "cortex_data", "index.db")
+    assert db_path == expected
+    assert os.path.exists(os.path.dirname(db_path))
+
+def test_get_db_path_ends_with_agents(tmp_path):
+    """
+    Test when workspace ends with .agents to prevent duplicate path joining
+    """
+    workspace = str(tmp_path / "project" / ".agents")
+    db_path = get_db_path(workspace)
+
+    expected = os.path.join(workspace, "cortex_data", "index.db")
+    assert db_path == expected
+    assert os.path.exists(os.path.dirname(db_path))
 
 def test_to_rel_path_normal():
     """
