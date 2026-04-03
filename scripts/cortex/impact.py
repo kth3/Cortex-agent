@@ -97,7 +97,7 @@ def find_logic_flow(conn, from_fqn, to_fqn):
                     })
             return flow
             
-        callees = conn.execute("SELECT to_id FROM edges WHERE from_id = ?", (node,)).fetchall()
+        callees = conn.execute("SELECT target_id FROM edges WHERE source_id = ?", (node,)).fetchall()
         for c in callees:
             cid = c[0]
             if cid not in visited:

@@ -53,16 +53,27 @@ def generate_context_capsule(workspace_path, query, token_budget=8000, category=
         impact = get_impact_tree(conn, node_id, direction='both', max_depth=1)
         supporting_nodes = impact["nodes"]
         
-        for sid, snode in supporting_nodes.items():
-            if sid == node_id: continue # 자신은 제외
+        sids_to_fetch = [sid for sid in supporting_nodes if sid != node_id]
+        node_map = {}
+        chunk_size = 900
+        for i in range(0, len(sids_to_fetch), chunk_size):
+            chunk = sids_to_fetch[i:i + chunk_size]
+            placeholders = ','.join(['?'] * len(chunk))
+            query = f"SELECT id, signature, raw_body FROM nodes WHERE id IN ({placeholders})"
+            rows = conn.execute(query, tuple(chunk)).fetchall()
+            for row in rows:
+                node_map[row['id']] = dict(row)
+        
+        for sid in sids_to_fetch:
             if current_tokens > token_budget: break
             
+            snode = supporting_nodes[sid]
             sfqn = snode["fqn"]
             sfile = snode["file_path"]
-            # 스켈레톤 추출을 위해 노드 정보를 다시 읽음 (raw_body 필요)
-            full_snode = get_node_by_id(conn, sid)
-            # full_snode가 없을 경우 snode를 그대로 시그니처만 사용
-            skel = get_node_skeleton(full_snode if full_snode else snode, detail="minimal")
+            
+            # DB에서 미리 일괄 로드한 full_snode 정보 사용
+            full_snode = node_map.get(sid, snode)
+            skel = get_node_skeleton(full_snode, detail="minimal")
             
             s_content = f"  - Related: {sfqn} (Skeleton: {skel})\n"
             capsule_text += s_content

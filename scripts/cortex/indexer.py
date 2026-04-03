@@ -193,9 +193,12 @@ def index_workspace(workspace: str, force: bool = False) -> dict:
         old_nodes = conn.execute("SELECT id FROM nodes WHERE file_path = ?", (rel_path,)).fetchall()
         old_ids = [r[0] for r in old_nodes]
         if old_ids:
-            ph = ",".join("?" * len(old_ids))
-            conn.execute(f"DELETE FROM edges WHERE source_id IN ({ph})", old_ids)
-            conn.execute(f"DELETE FROM edges WHERE target_id IN ({ph})", old_ids)
+            chunk_size = 900
+            for i in range(0, len(old_ids), chunk_size):
+                chunk = old_ids[i:i + chunk_size]
+                ph = ",".join("?" * len(chunk))
+                conn.execute(f"DELETE FROM edges WHERE source_id IN ({ph})", chunk)
+                conn.execute(f"DELETE FROM edges WHERE target_id IN ({ph})", chunk)
             conn.execute("DELETE FROM nodes WHERE file_path = ?", (rel_path,))
             
         # 노드/벡터 저장
