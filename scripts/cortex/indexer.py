@@ -278,6 +278,12 @@ def index_workspace(workspace: str, force: bool = False) -> dict:
     
     stats = {"total_files": len(files), "indexed": 0, "skipped": 0, "errors": 0}
     
+    # [NEW] N+1 optimization: bulk load file_cache
+    cache_dict = {}
+    if not force:
+        cached_rows = conn.execute("SELECT file_path, hash FROM file_cache").fetchall()
+        cache_dict = {row[0]: row[1] for row in cached_rows}
+
     for rel_path in files:
         # 해시 체크만 수행 (성능 최적화)
         full_path = os.path.join(workspace, rel_path)
@@ -290,8 +296,9 @@ def index_workspace(workspace: str, force: bool = False) -> dict:
             
         file_hash = compute_hash(source)
         if not force:
-            cached = conn.execute("SELECT hash FROM file_cache WHERE file_path = ?", (rel_path,)).fetchone()
-            if cached and cached[0] == file_hash:
+            # O(1) dictionary lookup instead of N+1 query
+            cached_hash = cache_dict.get(rel_path)
+            if cached_hash == file_hash:
                 stats["skipped"] += 1
                 continue
         
