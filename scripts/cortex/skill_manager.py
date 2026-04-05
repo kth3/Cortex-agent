@@ -176,7 +176,8 @@ class SkillManager:
         try:
             now = int(time.time())
 
-            # 1단계: FTS5 인덱싱
+            # 1단계: FTS5 인덱싱 (N+1 Query 최적화)
+            skill_info_map = {}
             for skill_path in skill_files:
                 try:
                     info = _parse_skill_md(str(skill_path))
@@ -189,19 +190,57 @@ class SkillManager:
                     content = f"[SKILL] {info['name']}\n설명: {info['description']}\n경로: {rel_path}\n\n{info['content_preview']}"
                     tags_json = json.dumps(info.get("tags", ["skill"]), ensure_ascii=False)
 
-                    existing = conn.execute("SELECT embedding FROM memories WHERE key = ?", (skill_key,)).fetchone()
-                    if existing:
-                        conn.execute("UPDATE memories SET content=?, tags=?, updated_at=? WHERE key=?", (content, tags_json, now, skill_key))
-                        if not existing[0]:
-                            pending_embed.append((skill_key, f"{info['name']} {info['description']}"))
-                    else:
-                        conn.execute("INSERT INTO memories (key, project_id, category, content, tags, created_at, updated_at) VALUES (?, ?, 'skill', ?, ?, ?, ?)",
-                                     (skill_key, project_id, content, tags_json, now, now))
-                        pending_embed.append((skill_key, f"{info['name']} {info['description']}"))
-                    synced += 1
+                    # 중복된 skill_key가 있을 경우 마지막 파일이 덮어씌움 (기존 로직과 동일)
+                    skill_info_map[skill_key] = {
+                        "key": skill_key,
+                        "name": info["name"],
+                        "description": info["description"],
+                        "content": content,
+                        "tags_json": tags_json,
+                        "path": skill_path
+                    }
                 except Exception as e:
                     errors.append(f"{skill_path}: {e}")
-            conn.commit()
+
+            if skill_info_map:
+                # 기존 항목 대량 조회 (Batch SELECT)
+                existing_map = {}
+                keys = list(skill_info_map.keys())
+                chunk_size = 900
+                for i in range(0, len(keys), chunk_size):
+                    chunk = keys[i:i + chunk_size]
+                    placeholders = ",".join(["?"] * len(chunk))
+                    rows = conn.execute(f"SELECT key, embedding FROM memories WHERE key IN ({placeholders})", chunk).fetchall()
+                    for r in rows:
+                        existing_map[r[0]] = r[1]
+
+                to_insert = []
+                to_update = []
+                for si in skill_info_map.values():
+                    skill_key = si["key"]
+                    content = si["content"]
+                    tags_json = si["tags_json"]
+
+                    if skill_key in existing_map:
+                        to_update.append((content, tags_json, now, skill_key))
+                        if not existing_map[skill_key]:
+                            pending_embed.append((skill_key, f"{si['name']} {si['description']}"))
+                    else:
+                        to_insert.append((skill_key, project_id, content, tags_json, now, now))
+                        pending_embed.append((skill_key, f"{si['name']} {si['description']}"))
+                    synced += 1
+
+                if to_insert:
+                    conn.executemany(
+                        "INSERT INTO memories (key, project_id, category, content, tags, created_at, updated_at) VALUES (?, ?, 'skill', ?, ?, ?, ?)",
+                        to_insert
+                    )
+                if to_update:
+                    conn.executemany(
+                        "UPDATE memories SET content=?, tags=?, updated_at=? WHERE key=?",
+                        to_update
+                    )
+                conn.commit()
 
             # 2단계: FAISS 벡터 인덱싱 (전체 본문 청킹 방식)
             import sys
