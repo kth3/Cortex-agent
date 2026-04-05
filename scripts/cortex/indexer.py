@@ -290,7 +290,7 @@ def index_workspace(workspace: str, force: bool = False) -> dict:
         try:
             with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                 source = f.read()
-        except:
+        except Exception:
             stats["errors"] += 1
             continue
             
