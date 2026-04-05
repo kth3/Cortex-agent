@@ -6,7 +6,7 @@ Cortex 벡터 검색 엔진 (Vector Engine)
 - 저장소: FAISS (로컬 파일 기반, cortex_data/vectors.index)
 """
 import os
-import pickle
+import json
 
 # 청킹 설정
 CHUNK_SIZE = 1200         # 청크당 최대 문자 수 (BGE-M3 최적화)
@@ -110,20 +110,30 @@ def _index_path(workspace: str) -> str:
 
 
 def _meta_path(workspace: str) -> str:
-    return os.path.join(_get_data_dir(workspace), "vectors_meta.pkl")
+    return os.path.join(_get_data_dir(workspace), "vectors_meta.json")
 
 
 def _load_faiss_index(workspace: str):
     """FAISS 인덱스 및 메타 로드 (없으면 None 반환)"""
     try:
         import faiss
+        import sys
         idx_path = _index_path(workspace)
         meta_path = _meta_path(workspace)
+
+        # 보안 강화: pickle 대신 json 사용
+        # 이전 버전(.pkl) 호환성 체크 및 경고
+        old_meta_path = os.path.join(_get_data_dir(workspace), "vectors_meta.pkl")
+        if os.path.exists(old_meta_path) and not os.path.exists(meta_path):
+            sys.stderr.write(f"[cortex-vector] WARNING: Old metadata format found ({old_meta_path}).\n")
+            sys.stderr.write("[cortex-vector] Please re-index your workspace to use the new secure JSON format.\n")
+
         if not os.path.exists(idx_path) or not os.path.exists(meta_path):
             return None, []
+
         index = faiss.read_index(idx_path)
-        with open(meta_path, "rb") as f:
-            meta = pickle.load(f)
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
         return index, meta
     except Exception as e:
         import sys
@@ -132,11 +142,11 @@ def _load_faiss_index(workspace: str):
 
 
 def _save_faiss_index(workspace: str, index, meta: list):
-    """FAISS 인덱스 및 메타 저장"""
+    """FAISS 인덱스 및 메타 저장 (JSON 포맷)"""
     import faiss
     faiss.write_index(index, _index_path(workspace))
-    with open(_meta_path(workspace), "wb") as f:
-        pickle.dump(meta, f)
+    with open(_meta_path(workspace), "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
 
 
 def _create_new_index(dim: int):
