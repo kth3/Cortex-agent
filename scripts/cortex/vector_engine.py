@@ -250,8 +250,8 @@ def index_texts(workspace: str, items: list[dict], use_gpu: bool = False) -> dic
     meta.extend(all_metas)
     _save_faiss_index(workspace, index, meta)
 
-    if use_gpu:
-        _release_gpu()
+    # GPU 해제는 호출자가 명시적으로 _release_gpu()를 호출해야 함.
+    # (파일별 자동 해제 시 매 파일마다 모델이 파괴/재로드되어 HF Hub 네트워크 요청 발생)
 
     return {"indexed": len(all_texts), "skipped": 0}
 
