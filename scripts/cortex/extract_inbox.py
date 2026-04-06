@@ -38,7 +38,7 @@ def extract_to_inbox():
         ).fetchall()
         
         if not new_obs:
-            print("[INFO] 추출할 새로운 관찰(Observations) 내용이 없습니다.")
+            import sys; sys.stderr.write("[INFO] 추출할 새로운 관찰(Observations) 내용이 없습니다.")
             return
 
         # 추출 대상 포맷팅
@@ -53,7 +53,7 @@ def extract_to_inbox():
             max_id = max(max_id, obs_id)
             
         if not os.path.exists(INBOX_PATH):
-            print(f"[ERROR] Inbox 파일을 찾을 수 없습니다: {INBOX_PATH}")
+            import sys; sys.stderr.write(f"[ERROR] Inbox 파일을 찾을 수 없습니다: {INBOX_PATH}")
             return
             
         with open(INBOX_PATH, 'r', encoding='utf-8') as f:
@@ -87,10 +87,10 @@ def extract_to_inbox():
         conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", ("last_extracted_obs_id", str(max_id)))
         conn.commit()
         
-        print(f"[SUCCESS] {len(new_obs)}개의 신규 인사이트를 inbox.md에 성공적으로 정리했습니다.")
+        import sys; sys.stderr.write(f"[SUCCESS] {len(new_obs)}개의 신규 인사이트를 inbox.md에 성공적으로 정리했습니다.")
         
     except Exception as e:
-        print(f"[ERROR] 추출 중 예외가 발생했습니다: {e}")
+        import sys; sys.stderr.write(f"[ERROR] 추출 중 예외가 발생했습니다: {e}")
     finally:
         conn.close()
 

@@ -228,17 +228,30 @@ class SkillManager:
                 to_insert = []
                 to_update = []
                 for si in skill_info_map.values():
-                    skill_key = si["key"]
-                    content = si["content"]
-                    tags_json = si["tags_json"]
+                    # si 타입 체크 및 안전한 필드 추출
+                    if isinstance(si, dict):
+                        skill_key = si.get("key")
+                        content = si.get("content")
+                        tags_json = si.get("tags_json")
+                        s_name = si.get("name", "")
+                        s_desc = si.get("description", "")
+                    else:
+                        # 튜플 가정 (key, name, desc, content, tags_json, path)
+                        skill_key = si[0] if len(si) > 0 else ""
+                        content = si[3] if len(si) > 3 else ""
+                        tags_json = si[4] if len(si) > 4 else "[]"
+                        s_name = si[1] if len(si) > 1 else ""
+                        s_desc = si[2] if len(si) > 2 else ""
+
+                    if not skill_key: continue
 
                     if skill_key in existing_map:
                         to_update.append((content, tags_json, now, skill_key))
                         if not existing_map.get(skill_key):
-                            pending_embed.append({"id": skill_key, "text": f"{si['name']} {si['description']}"})
+                            pending_embed.append({"id": skill_key, "text": f"{s_name} {s_desc}"})
                     else:
                         to_insert.append((skill_key, project_id, content, tags_json, now, now))
-                        pending_embed.append({"id": skill_key, "text": f"{si['name']} {si['description']}"})
+                        pending_embed.append({"id": skill_key, "text": f"{s_name} {s_desc}"})
                     synced += 1
 
                 if to_insert:
@@ -258,20 +271,31 @@ class SkillManager:
             vector_items = []
             for skill_path in skill_files:
                 try:
-                    info = _parse_skill_md(str(skill_path))
-                    if not info:
+                    info_raw = _parse_skill_md(str(skill_path))
+                    if not info_raw:
                         continue
+                    
+                    # info_raw 타입 체크 (dict vs tuple)
+                    if isinstance(info_raw, dict):
+                        i_name = info_raw.get("name", skill_path.parent.name)
+                        i_tags = info_raw.get("tags", [])
+                        i_full = info_raw.get("full_content", info_raw.get("content_preview", ""))
+                    else:
+                        i_name = info_raw[0] if len(info_raw) > 0 else skill_path.parent.name
+                        i_tags = info_raw[3] if len(info_raw) > 3 else []
+                        i_full = info_raw[5] if len(info_raw) > 5 else (info_raw[4] if len(info_raw) > 4 else "")
+
                     skill_key = f"skill::{skill_path.parent.name}"
                     # 제목 + 태그 + 전체 본문을 합쳐 청킹
                     full_text = (
-                        f"[SKILL] {info['name']}\n"
-                        f"Tags: {', '.join(info.get('tags', []))}\n\n"
-                        f"{info.get('full_content', info['content_preview'])}"
+                        f"[SKILL] {i_name}\n"
+                        f"Tags: {', '.join(i_tags)}\n\n"
+                        f"{i_full}"
                     )
                     vector_items.append({
                         "id": skill_key,
                         "text": full_text,
-                        "meta": {"name": info["name"], "tags": info.get("tags", [])},
+                        "meta": {"name": i_name, "tags": i_tags},
                     })
                 except Exception:
                     pass
