@@ -90,14 +90,7 @@ class PersistentMemoryManager:
         fetched_data = {}
         try:
             chunk_size = 900
-            # Batch update access count
-            for i in range(0, len(keys), chunk_size):
-                chunk = keys[i:i + chunk_size]
-                placeholders = ",".join(["?"] * len(chunk))
-                conn.execute(f"UPDATE memories SET access_count=access_count+1 WHERE key IN ({placeholders})", chunk)
-            conn.commit()
-
-            # Batch read
+            # 1단계: Batch read (SELECT 먼저)
             for i in range(0, len(keys), chunk_size):
                 chunk = keys[i:i + chunk_size]
                 placeholders = ",".join(["?"] * len(chunk))
@@ -108,6 +101,16 @@ class PersistentMemoryManager:
                     d["tags"] = json.loads(d.get("tags") or "[]")
                     d["relationships"] = json.loads(d.get("relationships") or "{}")
                     fetched_data[d["key"]] = d
+
+            # 2단계: 실제 존재하는 키만 access_count 업데이트
+            found_keys = list(fetched_data.keys())
+            if found_keys:
+                for i in range(0, len(found_keys), chunk_size):
+                    chunk = found_keys[i:i + chunk_size]
+                    placeholders = ",".join(["?"] * len(chunk))
+                    conn.execute(f"UPDATE memories SET access_count=access_count+1 WHERE key IN ({placeholders})", chunk)
+                conn.commit()
+
             return fetched_data
         finally:
             conn.close()

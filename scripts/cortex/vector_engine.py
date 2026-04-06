@@ -121,12 +121,20 @@ def _load_faiss_index(workspace: str):
         idx_path = _index_path(workspace)
         meta_path = _meta_path(workspace)
 
-        # 보안 강화: pickle 대신 json 사용
-        # 이전 버전(.pkl) 호환성 체크 및 경고
+        # pkl → json 자동 마이그레이션
         old_meta_path = os.path.join(_get_data_dir(workspace), "vectors_meta.pkl")
         if os.path.exists(old_meta_path) and not os.path.exists(meta_path):
-            sys.stderr.write(f"[cortex-vector] WARNING: Old metadata format found ({old_meta_path}).\n")
-            sys.stderr.write("[cortex-vector] Please re-index your workspace to use the new secure JSON format.\n")
+            sys.stderr.write(f"[cortex-vector] Migrating {old_meta_path} → {meta_path}...\n")
+            try:
+                import pickle
+                with open(old_meta_path, "rb") as f:
+                    legacy_meta = pickle.load(f)
+                with open(meta_path, "w", encoding="utf-8") as f:
+                    json.dump(legacy_meta, f, ensure_ascii=False, indent=2)
+                os.rename(old_meta_path, old_meta_path + ".migrated")
+                sys.stderr.write("[cortex-vector] Migration complete.\n")
+            except Exception as me:
+                sys.stderr.write(f"[cortex-vector] Migration failed: {me}. Re-index required.\n")
 
         if not os.path.exists(idx_path) or not os.path.exists(meta_path):
             return None, []
