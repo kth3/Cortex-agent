@@ -234,7 +234,7 @@ def _create_indexes(conn: sqlite3.Connection):
 def _apply_migrations(conn: sqlite3.Connection):
     """기존 스키마에 대한 마이그레이션 적용"""
     # nodes 테이블 마이그레이션
-    columns = [c['name'] for c in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+    columns = [c[1] for c in conn.execute("PRAGMA table_info(nodes)").fetchall()]
     if 'module' not in columns:
         conn.execute("ALTER TABLE nodes ADD COLUMN module TEXT DEFAULT 'unknown'")
     if 'workspace_id' not in columns:
@@ -243,7 +243,7 @@ def _apply_migrations(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE nodes ADD COLUMN category TEXT DEFAULT 'SOURCE'")
 
     # file_cache 테이블 마이그레이션
-    cache_columns = [c['name'] for c in conn.execute("PRAGMA table_info(file_cache)").fetchall()]
+    cache_columns = [c[1] for c in conn.execute("PRAGMA table_info(file_cache)").fetchall()]
     if 'workspace_id' not in cache_columns:
         conn.execute("ALTER TABLE file_cache ADD COLUMN workspace_id TEXT DEFAULT 'default'")
 
