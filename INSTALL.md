@@ -24,16 +24,15 @@ python3 -m venv .agents/venv
 .agents/venv/bin/pip install -r .agents/requirements.txt
 ```
 
-### [B] 고성능 GPU 가속 설치 (NVIDIA Ampere 이상 = RTX 3000번 대 그래픽부터입니다)
+### [B] 고성능 GPU 가속 설치 (NVIDIA Ampere 이상)
 NVIDIA GPU를 활용하여 임베딩 및 검색 속도를 높이려면 이 방식을 선택하십시오.
-FP16이 아닌 BF16 버전을 cuda로 사용하는 방식입니다.
 - **상세 가이드**: [DEPENDENCIES.md](./DEPENDENCIES.md)
 
 ---
 
 ## 2. 프로젝트 통합 설정 (Lean Context Setup)
 
-AI 에이전트가, 에디터가 자동으로 `.agents` 내부를 스캔한 파일로 인해  토큰을 낭비하지 않도록, **`.agents/templates/ignores/`** 내의 설정들을 워크스페이스 루트로 복사하십시오.
+AI 에이전트가 `.agents` 내부의 수천 개 파일을 직접 스캔하여 토큰을 낭비하지 않도록, **`.agents/templates/ignores/`** 내의 설정들을 워크스페이스 루트로 복사하십시오.
 
 - **방법**: `.geminiignore`, `.claudesignore` 등과 `.vscode/` 폴더를 루트로 이동/복사합니다.
 - **효과**: 에이전트의 시야에서는 숨겨지지만, 백그라운드 MCP 엔진은 정상적으로 이를 읽어 DB를 구축합니다.
@@ -58,12 +57,17 @@ gemini mcp add -s user -e PYTHONPATH=/절대/경로/참조/.agents/scripts corte
 
 **Claude Code (CLI 사용):**
 터미널에서 다음 명령어를 실행하십시오:
-(아직 실행을 못 해봤습니다)
 ```bash
 claude mcp add -s user -e PYTHONPATH=/절대/경로/참조/.agents/scripts cortex-mcp -- /절대/경로/참조/.agents/venv/bin/python3 /절대/경로/참조/.agents/scripts/cortex_mcp.py
+```
+
+**OpenAI Codex CLI (`codex mcp add` 명령어 사용):**
+터미널에서 다음 명령어를 실행하십시오:
+```bash
+codex mcp add -s user -e PYTHONPATH=/절대/경로/참조/.agents/scripts cortex-mcp /절대/경로/참조/.agents/venv/bin/python3 /절대/경로/참조/.agents/scripts/cortex_mcp.py
 ```
 
 ---
 
 ## ⚖️ 라이선스 (License)
-- **Knowledge**: 지식 모음의 원본은 [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills)이며 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 라이선스를 따릅니다.
+- **Skills**: 스킬 가이드의 원본은 [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills)이며 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 라이선스를 따릅니다.
