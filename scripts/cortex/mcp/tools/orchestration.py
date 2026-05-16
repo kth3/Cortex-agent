@@ -42,6 +42,37 @@ def call_todo_manager(ctx, args):
 
 def call_create_contract(ctx, args):
     """creates a contract for a task"""
+    lane_id = args["lane_id"]
+    files_to_modify = args.get("files_to_modify") or []
+    
+    # Phase 3: Collision Detection
+    import relay
+    relay.update_files_to_modify(lane_id, files_to_modify)
+    
+    if files_to_modify:
+        active_files = set(relay.get_active_files(exclude_lane_id=lane_id))
+        requested_files = set(files_to_modify)
+        if requested_files.intersection(active_files):
+            # Phase 4: Dynamic Redirection
+            from cortex.paths import resolve_workspace, workspace_key
+            from cortex.vcs.core import WorkspaceManager
+            from cortex.vcs.git_worktree import GitWorktreeManager
+            from cortex.vcs.plastic_workspace import PlasticWorkspaceManager
+            
+            main_repo = resolve_workspace(ctx.workspace)
+            vcs_type = WorkspaceManager.detect_vcs(main_repo)
+            
+            if vcs_type:
+                target_dir = main_repo / ".cortex" / "isolated_workspaces" / workspace_key(main_repo) / lane_id
+                
+                if not target_dir.exists():
+                    wm = GitWorktreeManager(main_repo) if vcs_type == "git" else PlasticWorkspaceManager(main_repo)
+                    success = wm.create_isolated_workspace(target_dir)
+                    if success:
+                        relay.set_isolated_workspace(lane_id, str(main_repo), str(target_dir))
+                        ctx.workspace = str(target_dir)
+                        args["instructions"] = args.get("instructions", "") + f"\n\n[SYSTEM] A file collision was detected. You have been isolated into a {vcs_type} workspace at {target_dir}. Continue normally."
+
     res = create_contract(
         ctx.workspace,
         ctx.session_id,

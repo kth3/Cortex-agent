@@ -20,7 +20,7 @@ def resolve_workspace(start_path: str | os.PathLike | None = None) -> Path:
     curr = Path(start_path or os.getcwd()).resolve()
 
     for parent in (curr, *curr.parents):
-        if (parent / ".git").exists():
+        if (parent / ".git").exists() or (parent / ".plastic").exists():
             return parent
     return curr
 
@@ -52,6 +52,17 @@ def workspace_key(workspace: str | os.PathLike | None = None) -> str:
     if override:
         return override
     ws = Path(workspace or os.getcwd()).resolve()
+
+    # If the workspace is an isolated worktree/workspace, extract its root hash
+    parts = ws.parts
+    if "isolated_workspaces" in parts:
+        try:
+            idx = parts.index("isolated_workspaces")
+            if idx + 1 < len(parts):
+                return parts[idx + 1]
+        except ValueError:
+            pass
+
     return hashlib.sha1(str(ws).encode("utf-8")).hexdigest()[:WORKSPACE_KEY_PREFIX_LEN]
 
 

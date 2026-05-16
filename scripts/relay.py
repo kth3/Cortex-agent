@@ -19,7 +19,10 @@ _DEFAULT_LANE = {
     "handoff_to": None,
     "handoff_message": None,
     "contract_id": None,
-    "locked_at": None  # 락 획득 시각 (좀비 감지용)
+    "locked_at": None,  # 락 획득 시각 (좀비 감지용)
+    "files_to_modify": [],
+    "isolated_workspace_dir": None,
+    "main_repo_path": None
 }
 
 def _default_board():
@@ -70,7 +73,10 @@ def _locked_transaction(fn):
                     "handoff_to": board.get("handoff_to"),
                     "handoff_message": board.get("handoff_message"),
                     "contract_id": board.get("contract_id"),
-                    "locked_at": None
+                    "locked_at": None,
+                    "files_to_modify": [],
+                    "isolated_workspace_dir": None,
+                    "main_repo_path": None
                 }
                 board = {"updated_at": board.get("updated_at"), "lanes": {"default": old_data}}
             
@@ -186,6 +192,64 @@ def acquire(agent_id, task, lane_id="default"):
     
     _locked_transaction(_acquire)
 
+def update_files_to_modify(lane_id, files):
+    """지정된 레인에서 수정 예정인 파일 목록을 업데이트합니다."""
+    def _update(board):
+        if lane_id in board["lanes"]:
+            board["lanes"][lane_id]["files_to_modify"] = files or []
+        return board
+    _locked_transaction(_update)
+
+def set_isolated_workspace(lane_id, main_repo_path, isolated_workspace_dir):
+    """격리된 워크스페이스(Worktree/Gluon) 경로를 저장합니다."""
+    def _set(board):
+        if lane_id in board["lanes"]:
+            board["lanes"][lane_id]["main_repo_path"] = main_repo_path
+            board["lanes"][lane_id]["isolated_workspace_dir"] = isolated_workspace_dir
+        return board
+    _locked_transaction(_set)
+
+def _cleanup_isolated_workspace(lane):
+    """종료된 레인의 격리된 워크스페이스를 제거합니다."""
+    main_repo_str = lane.get("main_repo_path")
+    iso_dir_str = lane.get("isolated_workspace_dir")
+    
+    if main_repo_str and iso_dir_str:
+        from pathlib import Path
+        main_repo = Path(main_repo_str)
+        iso_dir = Path(iso_dir_str)
+        
+        try:
+            from cortex.vcs.core import WorkspaceManager
+            from cortex.vcs.git_worktree import GitWorktreeManager
+            from cortex.vcs.plastic_workspace import PlasticWorkspaceManager
+            
+            vcs_type = WorkspaceManager.detect_vcs(main_repo)
+            if vcs_type == "git":
+                wm = GitWorktreeManager(main_repo)
+                wm.remove_isolated_workspace(iso_dir)
+            elif vcs_type == "plastic":
+                wm = PlasticWorkspaceManager(main_repo)
+                wm.remove_isolated_workspace(iso_dir)
+        except Exception as e:
+            print(f"[CLEANUP ERROR] Failed to remove isolated workspace {iso_dir}: {e}")
+            
+    lane["main_repo_path"] = None
+    lane["isolated_workspace_dir"] = None
+
+def get_active_files(exclude_lane_id=None):
+    """현재 활성화(BUSY)된 다른 레인들이 수정 중인 파일 목록을 반환합니다."""
+    active_files = set()
+    def _read(board):
+        for lid, lane in board.get("lanes", {}).items():
+            if lid == exclude_lane_id:
+                continue
+            if lane.get("status") == "BUSY":
+                active_files.update(lane.get("files_to_modify", []))
+        return None  # 읽기 전용
+    _locked_transaction(_read)
+    return list(active_files)
+
 def release(agent_id, lane_id="default", handoff_to=None, message=None, contract_id=None, phase="DONE"):
     def _release(board):
         if lane_id not in board["lanes"] or board["lanes"][lane_id].get("active_agent_id") != agent_id:
@@ -206,6 +270,9 @@ def release(agent_id, lane_id="default", handoff_to=None, message=None, contract
         lane["handoff_message"] = msg
         lane["contract_id"] = contract_id
         lane["locked_at"] = None
+        lane["files_to_modify"] = []
+        
+        _cleanup_isolated_workspace(lane)
         
         if not handoff_to:
             lane["active_agent_id"] = None
@@ -235,6 +302,9 @@ def force_release(lane_id="default"):
         lane["handoff_to"] = None
         lane["handoff_message"] = f"Force-released by operator (was: {old_agent})"
         lane["locked_at"] = None
+        
+        _cleanup_isolated_workspace(lane)
+        
         print(f"[FORCE-RELEASED] Lane '{lane_id}' has been forcefully released. (was held by: {old_agent})")
         return board
     

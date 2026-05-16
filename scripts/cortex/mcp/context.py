@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-@dataclass(frozen=True)
+@dataclass
 class McpContext:
     workspace: str
     session_id: str
